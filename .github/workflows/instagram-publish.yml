@@ -1,0 +1,48 @@
+name: Instagram publish
+
+# 수동 실행 전용. check = 토큰 확인만, publish = 실제 공개 게시 (confirm 칸에 POST 입력 필요)
+# Secret: INSTAGRAM_ACCESS_TOKEN (통합 로그인 시스템 사용자 토큰, 만료 없음)
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [check, publish]
+        default: check
+      post_dir:
+        description: "게시할 폴더 (예: instagram/posts/2026-11-15_01_intro)"
+        required: false
+        default: ""
+      confirm:
+        description: "publish일 때만: POST 입력"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: instagram-publish
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard
+        if: ${{ inputs.mode == 'publish' }}
+        run: |
+          if [ "${{ inputs.confirm }}" != "POST" ]; then echo "::error::publish requires confirm=POST"; exit 1; fi
+          if [ -z "${{ inputs.post_dir }}" ] || [ ! -f "${{ inputs.post_dir }}/post.json" ]; then echo "::error::post_dir/post.json not found"; exit 1; fi
+      - name: Run
+        env:
+          IG_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          IG_USER_ID: "17841466421160514"
+        run: |
+          if [ "${{ inputs.mode }}" = "check" ]; then
+            python3 .github/scripts/ig_publish.py check
+          else
+            python3 .github/scripts/ig_publish.py publish "${{ inputs.post_dir }}"
+          fi
