@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OR TAROT｜タロット占いアプリ</title>
+<meta name="description" content="心が迷う日に、カード1枚で気持ちを整理。タロットリーディングアプリ OR TAROT。">
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#1e1234;--bg2:#3a2064;--gold:#f3c86b;--fg:#f0ebff;--dim:#c4b8e4;--line:#4a3478}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--fg);
+ font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
+ display:flex;align-items:center;justify-content:center;padding:32px 20px;line-height:1.7}
+main{width:100%;max-width:420px;text-align:center}
+.card{width:120px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.45);margin:0 auto 20px;display:block}
+.brand{color:var(--gold);font-weight:700;letter-spacing:.12em;font-size:14px;margin:0}
+h1{font-size:26px;margin:6px 0 4px;line-height:1.4}
+.lead{color:var(--dim);margin:0 0 26px;font-size:15px}
+.box{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:16px;padding:20px 18px;margin-bottom:16px}
+.box h2{font-size:18px;margin:0 0 6px;color:var(--gold)}
+.box p{margin:0 0 14px;font-size:15px}
+.btn{display:block;text-decoration:none;font-weight:700;border-radius:12px;padding:14px 16px;font-size:16px}
+.btn.main{background:var(--gold);color:#2a1a08}
+.btn.sub{border:1px solid var(--gold);color:var(--gold);margin-top:10px}
+.small{font-size:12px;color:var(--dim);margin-top:24px}
+.small a{color:var(--dim)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <img class="card" src="card-back.webp" alt="" width="120" height="180">
+  <p class="brand">OR TAROT</p>
+  <h1>心が迷う日に、<br>カード1枚で気持ちを整理。</h1>
+  <p class="lead">悩みのテーマを選んで、1枚または3枚のリーディング。今日の運勢も。</p>
+
+  <section class="box" id="ios" hidden>
+    <h2>iPhone版は準備中です</h2>
+    <p>いまはAndroid版のみ公開しています。<br>iPhone版が公開されたら、Instagramでお知らせします。</p>
+    <a class="btn main" href="https://www.instagram.com/or._tarot.jp/">@or._tarot.jp をフォローして待つ</a>
+  </section>
+
+  <section class="box" id="android">
+    <h2 id="andTitle">Android版はこちら</h2>
+    <p id="andNote">Google Playからインストールできます。</p>
+    <a class="btn main" id="playBtn" href="https://play.google.com/store/apps/details?id=com.ortarot.app&amp;hl=ja&amp;referrer=utm_source%3Dinstagram_ja%26utm_medium%3Dsocial%26utm_campaign%3Dprofile">Google Playで見る</a>
+  </section>
+
+  <p class="small">広告を含むアプリです。タロットは楽しみと自己内省のための参考です。<br>
+  <a href="https://or-taro.github.io/ortarot-privacy/">プライバシーポリシー</a></p>
+</main>
+<script>
+(function(){
+  var ua=navigator.userAgent||"";
+  var isIOS=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+  var isAndroid=/Android/i.test(ua);
+  if(isIOS){
+    document.getElementById("ios").hidden=false;
+    document.getElementById("andTitle").textContent="Androidをお使いの方";
+    document.getElementById("andNote").textContent="ご家族やお友だちのAndroid端末でも使えます。";
+    document.getElementById("playBtn").className="btn sub";
+  }
+})();
+</script>
+</body>
+</html>
