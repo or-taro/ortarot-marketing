@@ -118,7 +118,6 @@ def cmd_check():
     print(f"PASS: token works for @{me.get('username')}")
     print("publishing limit:", json.dumps(lim.get("data", lim), ensure_ascii=False))
     # 답글(이어 쓰기) 권한 확인: threads_manage_replies 가 없으면 여기서 오류
-    global call
     real = call
     def soft(*a, **k):
         try:
