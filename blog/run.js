@@ -12,7 +12,12 @@ for(const [i,u] of p.images.entries()){
 }
 let h=p.html;toks.forEach((t,i)=>{h=h.replace(`{{IMG${i+1}}}`,'<p>'+t+'</p>');});
 if(/\{\{IMG/.test(h)) throw new Error('placeholder left');
-ed.setContent(h);
+ed.setContent(h);await sleep(800);
+{const img=ed.getBody().querySelector('img');const r=img.getBoundingClientRect();
+ for(const ty of ['mouseover','mouseenter','mousemove','mousedown','mouseup','click'])img.dispatchEvent(new MouseEvent(ty,{bubbles:true,cancelable:true,clientX:r.x+50,clientY:r.y+50,view:ed.getWin()}));
+ await sleep(500);const rb=document.querySelector('.mce-represent-image-btn');if(!rb) throw new Error('no represent btn');
+ if(!rb.classList.contains('active')) for(const ty of ['mousedown','mouseup','click'])rb.dispatchEvent(new MouseEvent(ty,{bubbles:true,cancelable:true}));
+ await sleep(400);if(!rb.classList.contains('active')) throw new Error('represent not set');}
 const t=document.getElementById('post-title-inp');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,p.title);t.dispatchEvent(new Event('input',{bubbles:true}));
 document.getElementById('category-btn').click();await sleep(400);document.getElementById('category-item-1439947').click();await sleep(300);
 const inp=document.getElementById('tagText');const sv=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
@@ -28,5 +33,6 @@ for(const [id,v] of [['dateHour',hh],['dateMinute',mm]]){const e=document.getEle
 await sleep(300);
 const chk=[document.querySelector('.btn_reserve').textContent.trim(),document.getElementById('dateHour').value,document.getElementById('dateMinute').value];
 if(chk[0]!==d||chk[1]!==hh||chk[2]!==mm) throw new Error('date mismatch '+chk.join(' '));
+if(!document.querySelector('.box_thumb .thumb_g')) throw new Error('no thumbnail');
 document.getElementById('publish-btn').click();
-'submitted '+NAME+' '+p.at
+return 'submitted '+NAME+' '+p.at;
