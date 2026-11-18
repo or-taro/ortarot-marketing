@@ -48,7 +48,7 @@
   - 단계: ① ~12월 중순 팔로워·댓글 모으기(지금 팔로워 0이라 설치 전환 불가) ② 그 뒤 앱 설치 전환.
   - 섞기: 픽어카드 3 / 오늘의 한 장 2 / 질문 1 / 블로그 소개 1(링크는 본글 말고 답글에).
   - 지표: 팔로워, 픽어카드 글당 댓글 수, 프로필 링크 클릭(쓰레드 인사이트), Play Console 획득 보고서 utm_source=threads 설치 수.
-  - 프로필 링크: https://play.google.com/store/apps/details?id=com.ortarot.app&referrer=utm_source%3Dthreads%26utm_medium%3Dprofile (주인님이 프로필에 넣음).
+  - 프로필 링크: https://play.google.com/store/apps/details?id=com.ortarot.app&referrer=utm_source%3Dthreads%26utm_medium%3Dprofile (2026-11-18 주인님 교체 완료).
 - 판단: 할 만하다. 텍스트 대화형이라 '숫자 고르기' 픽어카드·오늘의 한 장과 잘 맞음. 인스타 계정과 연결됨.
 - 방식 (2026-11-18 주인님 "자동화로", 쓰레드 담당 = 디): 공식 Threads API 자동 게시.
   - 약관 확인: ① 자동 게시는 공식 API로 허용(앱 검수 없이 본인·테스터 계정만) ② 받는 데이터는 게시물 ID·반응 수뿐, 앱 권한 해제·종료 시 삭제 의무 ③ 쓰레드 데이터를 다른 곳에 다시 내보내지 않음 → 문제 없음.
