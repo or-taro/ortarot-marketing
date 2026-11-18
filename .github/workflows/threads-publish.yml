@@ -1,0 +1,75 @@
+name: Threads publish
+
+# 쓰레드 자동 게시. 주인님이 승인("진행")한 글만 threads/queue/ 에 들어오고,
+# 30분마다 게시 시각이 지난 글을 올린다. 24시간 넘게 늦은 글은 올리지 않는다(expired).
+# Secrets (주인님이 직접 등록, 디는 값을 볼 수 없음):
+#   THREADS_ACCESS_TOKEN  장기 토큰(60일). 매주 월요일 자동 갱신
+#   GH_SECRET_PAT         (선택) 이 저장소 Secrets 쓰기 권한만 있는 토큰. 있으면 갱신된 토큰을 자동 저장
+on:
+  schedule:
+    - cron: "4,34 * * * *"     # 30분마다 대기열 확인
+    - cron: "17 18 * * 0"      # 매주 월요일 03:17 KST 토큰 갱신
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [check, validate, due, refresh]
+        default: check
+
+permissions:
+  contents: write
+
+concurrency:
+  group: threads-publish
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick mode
+        id: m
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then m="${{ inputs.mode }}";
+          elif [ "${{ github.event.schedule }}" = "17 18 * * 0" ]; then m=refresh; else m=due; fi
+          echo "mode=$m" >> "$GITHUB_OUTPUT"; echo "mode: $m"
+      - name: Skip when nothing is due
+        id: q
+        if: ${{ steps.m.outputs.mode == 'due' }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import glob,json,os,datetime as dt
+          st=json.load(open("threads/published.json")) if os.path.isfile("threads/published.json") else {}
+          now=dt.datetime.now(dt.timezone.utc); due=0
+          for p in glob.glob("threads/queue/*.json"):
+              n=os.path.basename(p)
+              try: at=dt.datetime.fromisoformat(json.load(open(p,encoding="utf-8"))["publish_at"])
+              except Exception: due+=1; continue
+              if n not in st and at<=now: due+=1
+          print(f"due={due}")
+          PY
+      - name: Run
+        if: ${{ steps.m.outputs.mode != 'due' || steps.q.outputs.due != '0' }}
+        env:
+          TH_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          TH_NEW_TOKEN_FILE: /tmp/th_new_token
+        run: python3 .github/scripts/threads_publish.py "${{ steps.m.outputs.mode }}"
+      - name: Save refreshed token
+        if: ${{ steps.m.outputs.mode == 'refresh' }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRET_PAT }}
+        run: |
+          if [ ! -s /tmp/th_new_token ]; then echo "::error::no refreshed token"; exit 1; fi
+          echo "::add-mask::$(cat /tmp/th_new_token)"
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::GH_SECRET_PAT 없음: 토큰 기간은 늘었지만 새 값이 다르면 저장되지 않음"; exit 0; fi
+          gh secret set THREADS_ACCESS_TOKEN --repo "$GITHUB_REPOSITORY" < /tmp/th_new_token
+          rm -f /tmp/th_new_token; echo "PASS: secret updated"
+      - name: Commit publish record
+        if: ${{ always() && steps.m.outputs.mode == 'due' && steps.q.outputs.due != '0' }}
+        run: |
+          git add threads/published.json 2>/dev/null || exit 0
+          git diff --cached --quiet && exit 0
+          git -c user.name="ortarot-bot" -c user.email="actions@users.noreply.github.com" commit -m "threads: publish record"
+          git pull --rebase -q && git push
