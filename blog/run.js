@@ -12,7 +12,7 @@ for(const [i,u] of p.images.entries()){
 }
 let h=p.html;toks.forEach((t,i)=>{h=h.replace(`{{IMG${i+1}}}`,'<p>'+t+'</p>');});
 if(/\{\{IMG/.test(h)) throw new Error('placeholder left');
-ed.setContent(h);await sleep(800);
+ed.setContent(h);ed.undoManager.add();ed.fire('change');ed.fire('input');ed.nodeChanged();await sleep(800);
 {const img=ed.getBody().querySelector('img');const r=img.getBoundingClientRect();
  for(const ty of ['mouseover','mouseenter','mousemove','mousedown','mouseup','click'])img.dispatchEvent(new MouseEvent(ty,{bubbles:true,cancelable:true,clientX:r.x+50,clientY:r.y+50,view:ed.getWin()}));
  await sleep(500);const rb=document.querySelector('.mce-represent-image-btn');if(!rb) throw new Error('no represent btn');
