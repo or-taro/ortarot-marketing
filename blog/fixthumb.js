@@ -1,0 +1,13 @@
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+for(let i=0;i<40&&!(window.tinymce&&tinymce.activeEditor&&tinymce.activeEditor.getBody()&&tinymce.activeEditor.getBody().querySelector('img'));i++) await sleep(300);
+await sleep(800);
+const ed=tinymce.activeEditor;const img=ed.getBody().querySelector('img');const r=img.getBoundingClientRect();
+for(const ty of ['mouseover','mouseenter','mousemove','mousedown','mouseup','click'])img.dispatchEvent(new MouseEvent(ty,{bubbles:true,cancelable:true,clientX:r.x+50,clientY:r.y+50,view:ed.getWin()}));
+await sleep(500);const rb=document.querySelector('.mce-represent-image-btn');if(!rb) throw new Error('no btn');
+if(!rb.classList.contains('active')) for(const ty of ['mousedown','mouseup','click'])rb.dispatchEvent(new MouseEvent(ty,{bubbles:true,cancelable:true}));
+await sleep(400);if(!rb.classList.contains('active')) throw new Error('not active');
+[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='완료').click();await sleep(1000);
+if(!document.querySelector('.box_thumb .thumb_g')) throw new Error('no thumb');
+if(document.querySelector('.btn_date.on')?.textContent.trim()!=='예약') throw new Error('not reserved');
+document.getElementById('publish-btn').click();
+return 'ok';
