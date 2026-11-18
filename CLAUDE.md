@@ -48,4 +48,5 @@
   - 구조: `threads/queue/*.json`(게시 시각·본글·이어 쓰는 답글) → `.github/workflows/threads-publish.yml`이 30분마다 시각 지난 글 게시, 기록은 `threads/published.json`. 24시간 넘게 늦은 글은 올리지 않음. 한 번에 최대 2개.
   - 승인: 2026-11-18부터 디 일임. 디가 대기열에 넣고 commit·push까지 진행, 주간 보고.
   - 토큰: Secret `THREADS_ACCESS_TOKEN`(60일, 매주 월 03:17 자동 갱신). `GH_SECRET_PAT`(선택)이 있으면 갱신 값 자동 저장. 토큰은 채팅·저장소에 남기지 않는다.
+- 주간 자동 글쓰기: 예약 작업 '오르타로 쓰레드 주간 글쓰기'(trig_01GF4oGipm3Lb8zVPcaMn2V4, 매주 일 19:44 KST, 클라우드 실행·자동 승인). 다음 주 7개 대기열 작성·검사·push 후 휴대폰 알림 보고.
 - 금지: 남의 논란 글 댓글에 홍보('스레드 장터'), 같은 글 반복, 결과 단정·불안 조장.
