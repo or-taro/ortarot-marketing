@@ -9,7 +9,8 @@
   {"publish_at": "2026-11-19T12:00:00+09:00",
    "text": "본글 (500자 이내)",
    "replies": ["이어 쓰는 답글 1", "..."],      # 선택, 최대 5개, 각 500자 이내
-   "image": "threads/img/파일.jpg"}            # 선택, 공개 저장소 raw 주소로 Meta가 가져감
+   "image": "threads/img/파일.jpg",            # 선택, 공개 저장소 raw 주소로 Meta가 가져감
+   "reveal_after_h": 6}                        # 선택: 답글을 본글 N시간 뒤에 올린다(픽어카드 답 미리 보임 방지)
 기록: threads/published.json  {파일이름: {"id": 게시물ID, "at": 시각, "status": "posted|expired"}}
 토큰은 환경변수 TH_TOKEN 으로만 받고 출력하지 않는다.
 """
@@ -62,7 +63,10 @@ def load_queue():
             img = q.get("image")
             if img and not (img.lower().endswith((".jpg", ".jpeg", ".png")) and os.path.isfile(img)):
                 raise ValueError(f"image 파일 없음/형식 오류: {img}")
-            items.append({"name": name, "at": at, "text": text, "replies": reps, "image": img})
+            rv = float(q.get("reveal_after_h", 0))
+            if not 0 <= rv <= 24:
+                raise ValueError("reveal_after_h 는 0~24")
+            items.append({"name": name, "at": at, "text": text, "replies": reps, "image": img, "reveal": rv})
         except Exception as e:  # noqa: BLE001
             errs.append(f"{name}: {e}")
     return items, errs
@@ -120,6 +124,23 @@ def cmd_due():
     if errs:
         sys.exit("queue invalid:\n" + "\n".join(errs))
     st, now, n = load_state(), dt.datetime.now(dt.timezone.utc), 0
+    save = lambda: json.dump(st, open(STATE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    # 1) 이미 올린 본글 중 답 공개 시각이 지난 것: 남은 답글을 이어 붙인다
+    for it in sorted(items, key=lambda x: x["at"]):
+        rec = st.get(it["name"])
+        if not rec or rec.get("status") != "posted" or rec.get("replies_done", len(it["replies"])) >= len(it["replies"]):
+            continue
+        if it["at"] + dt.timedelta(hours=it["reveal"]) > now:
+            continue
+        prev = rec.get("last_id", rec["id"])
+        for r in it["replies"][rec.get("replies_done", 0):]:
+            time.sleep(3)
+            prev = post_one(r, reply_to=prev)
+            rec["replies_done"] = rec.get("replies_done", 0) + 1
+            rec["last_id"] = prev
+            save()
+        print("revealed:", it["name"])
+    # 2) 새 본글
     for it in sorted(items, key=lambda x: x["at"]):
         if it["name"] in st or it["at"] > now:
             continue
@@ -130,13 +151,17 @@ def cmd_due():
         if n >= MAX_PER_RUN:
             break
         root = post_one(it["text"], image=it["image"])
-        prev = root
-        for r in it["replies"]:
-            time.sleep(3)
-            prev = post_one(r, reply_to=prev)
-        st[it["name"]] = {"status": "posted", "id": root, "at": now.isoformat(), "replies": len(it["replies"])}
-        json.dump(st, open(STATE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-        print("posted:", it["name"], root)
+        rec = st[it["name"]] = {"status": "posted", "id": root, "at": now.isoformat(), "replies": len(it["replies"]), "replies_done": 0, "last_id": root}
+        save()
+        if it["reveal"] == 0:
+            prev = root
+            for r in it["replies"]:
+                time.sleep(3)
+                prev = post_one(r, reply_to=prev)
+                rec["replies_done"] += 1
+                rec["last_id"] = prev
+                save()
+        print("posted:", it["name"], root, f"(answers +{it['reveal']}h)" if it["reveal"] else "")
         n += 1
     json.dump(st, open(STATE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"done: {n} posted")
