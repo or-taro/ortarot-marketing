@@ -117,6 +117,16 @@ def cmd_check():
     lim = call("GET", "me/threads_publishing_limit", fields="quota_usage,config")
     print(f"PASS: token works for @{me.get('username')}")
     print("publishing limit:", json.dumps(lim.get("data", lim), ensure_ascii=False))
+    # 답글(이어 쓰기) 권한 확인: threads_manage_replies 가 없으면 여기서 오류
+    global call
+    real = call
+    def soft(*a, **k):
+        try:
+            return real(*a, **k)
+        except SystemExit as e:
+            return {"error": str(e)}
+    r = soft("GET", "me/threads_publishing_limit", fields="reply_quota_usage,reply_config")
+    print("REPLY permission:", "PASS" if "error" not in r else "FAIL " + r["error"][:300])
 
 
 def cmd_due():
