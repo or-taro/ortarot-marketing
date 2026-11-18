@@ -61,4 +61,4 @@
 - 발행 방법: `blog/posts/*.json`(제목·태그·HTML·이미지 주소·예약 시각) + `blog/run.js`를 티스토리 글쓰기 화면에서 실행 → 이미지 붙여넣기 업로드, 대표 이미지 지정, 카테고리 타로S, 예약. 스크립트는 raw 주소 캐시 때문에 **커밋 SHA 주소**로 불러온다. 원고 원본 `/home/claude/blogq`(세션 한정) → 다음엔 저장소에 함께 둔다.
 - 카테고리 구조 정리: 아직(티스토리 카테고리 화면이 끌어 놓기 방식). 다음 PC 작업 때.
 - 다음 PC 작업 때 채울 칸: 12/3부터. 다음 카드: 완드 왕(35), 이어서 컵 수트.
-- 쓰레드: Meta 앱 'OrTarot Publisher'(개발 중)에 Threads API 이용 사례 추가(threads_basic·content_publish·manage_insights), @or._tarot Threads 테스터 초대(수락 대기).
+- 쓰레드: Meta 앱 'OrTarot Publisher'(개발 중)에 Threads API 이용 사례 추가(threads_basic·content_publish·manage_insights), @or._tarot Threads 테스터 수락, 토큰 등록, check run 44297601616 PASS(@or._tarot, 한도 250/일). 2026-11-18 20:45 연결 완료. 토큰 만료 약 2027-01-17 → 1/10 갱신 확인 예약.
