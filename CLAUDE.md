@@ -56,6 +56,7 @@
   - 픽어카드는 답이 바로 보이지 않게 `reveal_after_h`(기본 6)로 답글을 늦게 올린다. 본글에 "해석은 ○시에 이 글 아래에"를 적는다 (2026-11-18 주인님 지적: 답이 바로 나열돼 보임).
   - 승인: 2026-11-18부터 디 일임. 디가 대기열에 넣고 commit·push까지 진행, 주간 보고.
   - 토큰: Secret `THREADS_ACCESS_TOKEN`(60일, 매주 월 03:17 자동 갱신). `GH_SECRET_PAT`(선택)이 있으면 갱신 값 자동 저장. 토큰은 채팅·저장소에 남기지 않는다.
+- 쓰레드 숫자 읽기(2026-11-19): REST `POST repos/or-taro/ortarot-marketing/actions/workflows/threads-publish.yml/dispatches` (ref=main, inputs[mode]=insights) → 실행 로그의 ACCOUNT·POST 줄(팔로워, 글별 조회·좋아요·댓글·리포스트·공유). 주인님 캡처 불필요.
 - 주간 자동 글쓰기: 예약 작업 '오르타로 주간 마케팅 점검·쓰레드 글쓰기'(trig_01GF4oGipm3Lb8zVPcaMn2V4, 매주 일 19:44 KST, 클라우드·자동 승인). 지난주 숫자 점검 → LEARNINGS.md 기록·실험 1개 → 다음 주 쓰레드 7개 → push → 휴대폰 보고.
 - 금지: 남의 논란 글 댓글에 홍보('스레드 장터'), 같은 글 반복, 결과 단정·불안 조장.
 
