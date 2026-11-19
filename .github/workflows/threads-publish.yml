@@ -13,7 +13,7 @@ on:
     inputs:
       mode:
         type: choice
-        options: [check, validate, due, refresh]
+        options: [check, validate, due, refresh, insights]
         default: check
 
 permissions:
@@ -45,9 +45,13 @@ jobs:
           now=dt.datetime.now(dt.timezone.utc); due=0
           for p in glob.glob("threads/queue/*.json"):
               n=os.path.basename(p)
-              try: at=dt.datetime.fromisoformat(json.load(open(p,encoding="utf-8"))["publish_at"])
+              try:
+                  q=json.load(open(p,encoding="utf-8")); at=dt.datetime.fromisoformat(q["publish_at"])
               except Exception: due+=1; continue
               if n not in st and at<=now: due+=1
+              r=st.get(n,{})
+              if r.get("status")=="posted" and r.get("replies_done",len(q.get("replies",[])))<len(q.get("replies",[])) \
+                 and at+dt.timedelta(hours=float(q.get("reveal_after_h",0)))<=now: due+=1
           print(f"due={due}")
           PY
       - name: Run

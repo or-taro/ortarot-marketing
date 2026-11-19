@@ -3,6 +3,7 @@
   python threads_publish.py validate         대기열 파일 형식 검사 (토큰 불필요)
   python threads_publish.py check            토큰·계정·게시 한도 확인 (게시 안 함)
   python threads_publish.py due              게시 시각이 지난 대기열 글을 올린다
+  python threads_publish.py insights         올린 글별 조회·좋아요·댓글 수와 팔로워 수(숫자만)
   python threads_publish.py refresh          장기 토큰 갱신 → 새 토큰을 파일로만 남김(출력 안 함)
 
 대기열: threads/queue/*.json
@@ -176,6 +177,28 @@ def cmd_due():
     print(f"done: {n} posted")
 
 
+def cmd_insights():
+    """올린 글별 숫자(조회·좋아요·댓글·리포스트·인용·공유)와 계정 팔로워 수. 숫자만 출력, 남의 정보는 다루지 않음."""
+    soft = lambda *a, **k: (lambda: call(*a, **k))
+    try:
+        acc = call("GET", "me/threads_insights", metric="followers_count")
+        for d in acc.get("data", []):
+            v = d.get("total_value", {}).get("value", (d.get("values") or [{}])[-1].get("value"))
+            print(f"ACCOUNT {d.get('name')}: {v}")
+    except SystemExit as e:
+        print("ACCOUNT insights FAIL", str(e)[:200])
+    st = load_state()
+    for name, rec in sorted(st.items()):
+        if rec.get("status") != "posted":
+            continue
+        try:
+            r = call("GET", f"{rec['id']}/insights", metric="views,likes,replies,reposts,quotes,shares")
+            nums = {d["name"]: (d.get("values") or [{}])[0].get("value", d.get("total_value", {}).get("value")) for d in r.get("data", [])}
+            print("POST", name, json.dumps(nums))
+        except SystemExit as e:
+            print("POST", name, "FAIL", str(e)[:200])
+
+
 def cmd_refresh():
     r = call("GET", f"{BASE}/refresh_access_token", grant_type="th_refresh_token")
     tok = r.get("access_token", "")
@@ -190,4 +213,4 @@ if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "validate"
     if mode != "validate" and not TOKEN:
         sys.exit("TH_TOKEN missing")
-    {"validate": cmd_validate, "check": cmd_check, "due": cmd_due, "refresh": cmd_refresh}[mode]()
+    {"validate": cmd_validate, "check": cmd_check, "due": cmd_due, "refresh": cmd_refresh, "insights": cmd_insights}[mode]()
