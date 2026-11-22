@@ -3,6 +3,7 @@
   python threads_publish.py validate         대기열 파일 형식 검사 (토큰 불필요)
   python threads_publish.py check            토큰·계정·게시 한도 확인 (게시 안 함)
   python threads_publish.py due              게시 시각이 지난 대기열 글을 올린다
+  python threads_publish.py next             다음 게시·답 공개 시각(epoch 초, 없으면 빈 줄). 워크플로 대기용
   python threads_publish.py insights         올린 글별 조회·좋아요·댓글 수와 팔로워 수(숫자만)
   python threads_publish.py refresh          장기 토큰 갱신 → 새 토큰을 파일로만 남김(출력 안 함)
 
@@ -98,7 +99,15 @@ def post_one(text, reply_to=None, image=None):
         p["reply_to_id"] = reply_to
     cid = call("POST", "me/threads", **p)["id"]
     wait_ready(cid)
-    return call("POST", "me/threads_publish", creation_id=cid)["id"]
+    # 2026-11-21 run 44938194801: FINISHED 직후 publish 가 "Media Not Found"(code 24) 로 한 번 실패 → 잠시 뒤 다시 시도
+    for i in range(3):
+        try:
+            return call("POST", "me/threads_publish", creation_id=cid)["id"]
+        except SystemExit as e:
+            if i == 2 or "4279009" not in str(e):
+                raise
+            print("publish retry", i + 1, "(media not found yet)")
+            time.sleep(15)
 
 
 def cmd_validate():
@@ -177,6 +186,21 @@ def cmd_due():
     print(f"done: {n} posted")
 
 
+def cmd_next():
+    """다음에 할 일(본글 게시 또는 답 공개)의 시각을 epoch 초로 출력. 없으면 아무것도 출력하지 않음. 토큰 불필요."""
+    items, _ = load_queue()
+    st, now, ts = load_state(), dt.datetime.now(dt.timezone.utc), []
+    for it in items:
+        rec = st.get(it["name"])
+        if not rec:
+            if now - it["at"] <= dt.timedelta(hours=LATE_LIMIT_H):
+                ts.append(it["at"])
+        elif rec.get("status") == "posted" and rec.get("replies_done", len(it["replies"])) < len(it["replies"]):
+            ts.append(it["at"] + dt.timedelta(hours=it["reveal"]))
+    if ts:
+        print(int(min(ts).timestamp()))
+
+
 def cmd_insights():
     """올린 글별 숫자(조회·좋아요·댓글·리포스트·인용·공유)와 계정 팔로워 수. 숫자만 출력, 남의 정보는 다루지 않음."""
     soft = lambda *a, **k: (lambda: call(*a, **k))
@@ -211,6 +235,6 @@ def cmd_refresh():
 
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "validate"
-    if mode != "validate" and not TOKEN:
+    if mode not in ("validate", "next") and not TOKEN:
         sys.exit("TH_TOKEN missing")
-    {"validate": cmd_validate, "check": cmd_check, "due": cmd_due, "refresh": cmd_refresh, "insights": cmd_insights}[mode]()
+    {"validate": cmd_validate, "check": cmd_check, "due": cmd_due, "next": cmd_next, "refresh": cmd_refresh, "insights": cmd_insights}[mode]()

@@ -19,14 +19,15 @@ on:
 permissions:
   contents: write
 
+# 게시(due)는 한 줄로만. 확인·숫자 읽기·토큰 갱신은 대기 중인 게시 실행에 막히지 않게 따로 줄을 세운다.
 concurrency:
-  group: threads-publish
+  group: threads-${{ github.event.schedule == '17 18 * * 0' && 'refresh' || ((github.event_name == 'workflow_dispatch' && inputs.mode != 'due') && inputs.mode || 'publish') }}
   cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - name: Pick mode
@@ -35,27 +36,36 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then m="${{ inputs.mode }}";
           elif [ "${{ github.event.schedule }}" = "17 18 * * 0" ]; then m=refresh; else m=due; fi
           echo "mode=$m" >> "$GITHUB_OUTPUT"; echo "mode: $m"
-      - name: Skip when nothing is due
-        id: q
+      # 2026-11-22: GitHub 예약 실행이 30분 간격이 아니라 하루 2~4번(5~9시간 간격)만 돌아 글이 2~12시간 늦게 올라감.
+      # 그래서 게시 실행은 바로 끝내지 않고, 다음 게시·답 공개가 약 5시간 40분 안에 있으면 그 시각까지 기다렸다가 올린다.
+      - name: Publish due posts (wait for upcoming ones)
         if: ${{ steps.m.outputs.mode == 'due' }}
+        env:
+          TH_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          WATCH_MIN: "340"
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import glob,json,os,datetime as dt
-          st=json.load(open("threads/published.json")) if os.path.isfile("threads/published.json") else {}
-          now=dt.datetime.now(dt.timezone.utc); due=0
-          for p in glob.glob("threads/queue/*.json"):
-              n=os.path.basename(p)
-              try:
-                  q=json.load(open(p,encoding="utf-8")); at=dt.datetime.fromisoformat(q["publish_at"])
-              except Exception: due+=1; continue
-              if n not in st and at<=now: due+=1
-              r=st.get(n,{})
-              if r.get("status")=="posted" and r.get("replies_done",len(q.get("replies",[])))<len(q.get("replies",[])) \
-                 and at+dt.timedelta(hours=float(q.get("reveal_after_h",0)))<=now: due+=1
-          print(f"due={due}")
-          PY
+          git config user.name "ortarot-bot"; git config user.email "actions@users.noreply.github.com"
+          end=$(( $(date +%s) + WATCH_MIN*60 )); fails=0
+          while :; do
+            git pull --rebase -q || true
+            nxt=$(python3 .github/scripts/threads_publish.py next)
+            now=$(date +%s)
+            if [ -z "$nxt" ]; then echo "nothing pending"; break; fi
+            if [ "$nxt" -gt "$now" ]; then
+              if [ "$nxt" -gt "$end" ]; then echo "next at $(date -u -d @$nxt +%FT%TZ), beyond this run"; break; fi
+              echo "waiting until $(date -u -d @$nxt +%FT%TZ)"; sleep $(( nxt - now + 20 )); continue
+            fi
+            if python3 .github/scripts/threads_publish.py due; then fails=0; else fails=$((fails+1)); fi
+            git add threads/published.json
+            if ! git diff --cached --quiet; then
+              git commit -qm "threads: publish record"
+              for k in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done
+            fi
+            if [ "$fails" -ge 3 ]; then echo "::error::due failed 3 times"; exit 1; fi
+            [ "$fails" -gt 0 ] && sleep 300
+          done
       - name: Run
-        if: ${{ steps.m.outputs.mode != 'due' || steps.q.outputs.due != '0' }}
+        if: ${{ steps.m.outputs.mode != 'due' }}
         env:
           TH_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           TH_NEW_TOKEN_FILE: /tmp/th_new_token
@@ -70,10 +80,3 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then echo "::warning::GH_SECRET_PAT 없음: 토큰 기간은 늘었지만 새 값이 다르면 저장되지 않음"; exit 0; fi
           gh secret set THREADS_ACCESS_TOKEN --repo "$GITHUB_REPOSITORY" < /tmp/th_new_token
           rm -f /tmp/th_new_token; echo "PASS: secret updated"
-      - name: Commit publish record
-        if: ${{ always() && steps.m.outputs.mode == 'due' && steps.q.outputs.due != '0' }}
-        run: |
-          git add threads/published.json 2>/dev/null || exit 0
-          git diff --cached --quiet && exit 0
-          git -c user.name="ortarot-bot" -c user.email="actions@users.noreply.github.com" commit -m "threads: publish record"
-          git pull --rebase -q && git push
