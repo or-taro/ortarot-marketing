@@ -18,10 +18,18 @@
 """
 import datetime as dt, glob, json, os, sys, time, urllib.parse, urllib.request
 
-BASE = os.environ.get("IG_BASE", "https://graph.instagram.com")
-VER = os.environ.get("IG_VER", "v23.0")
-API = f"{BASE}/{VER}" if VER else BASE
 TOKENS = {"ko": os.environ.get("IG_TOKEN_KO", ""), "ja": os.environ.get("IG_TOKEN_JA", "")}
+# 2026-11-23: 새 Meta 앱은 '통합 로그인' 구성 → 시스템 사용자 토큰(EAA…, 만료 없음, graph.facebook.com).
+# 예전 방식 인스타 토큰(IG…)이면 graph.instagram.com. 토큰 앞글자로 자동 선택.
+IG_USER = {"ko": os.environ.get("IG_USER_KO", "17841466421160514"), "ja": os.environ.get("IG_USER_JA", "17841423713287381")}
+VER = os.environ.get("IG_VER", "v23.0")
+def host(acc):
+    if os.environ.get("IG_BASE"):
+        return os.environ["IG_BASE"]
+    return "https://graph.facebook.com" if TOKENS[acc].startswith("EAA") else "https://graph.instagram.com"
+def api(acc):
+    return f"{host(acc)}/{VER}" if VER else host(acc)
+BASE = "https://graph.instagram.com"
 REPO = os.environ.get("GITHUB_REPOSITORY", "or-taro/ortarot-marketing")
 REF = os.environ.get("GITHUB_SHA", "main")
 QDIR, STATE = "instagram/queue", "instagram/published.json"
@@ -33,6 +41,7 @@ def call(acc, method, path, **params):
     tok = TOKENS[acc]
     params["access_token"] = tok
     data = urllib.parse.urlencode(params).encode()
+    API = api(acc)
     url = path if path.startswith("http") else f"{API}/{path}"
     req = urllib.request.Request(url + "?" + data.decode()) if method == "GET" else urllib.request.Request(url, data=data, method="POST")
     try:
@@ -89,8 +98,12 @@ def raw(path):
 _uid = {}
 def uid(acc):
     if acc not in _uid:
-        me = call(acc, "GET", "me", fields="user_id,username")
-        _uid[acc] = (me.get("user_id") or me.get("id"), me.get("username"))
+        if TOKENS[acc].startswith("EAA") or (os.environ.get("IG_BASE") and os.environ.get("IG_SUAT")):
+            me = call(acc, "GET", IG_USER[acc], fields="id,username")
+            _uid[acc] = (me.get("id") or IG_USER[acc], me.get("username"))
+        else:
+            me = call(acc, "GET", "me", fields="user_id,username")
+            _uid[acc] = (me.get("user_id") or me.get("id"), me.get("username"))
     return _uid[acc]
 
 
@@ -211,6 +224,8 @@ def cmd_refresh():
     for acc, tok in TOKENS.items():
         if not tok:
             continue
+        if tok.startswith("EAA"):
+            print(f"PASS {acc}: system user token, no refresh needed"); ok += 1; continue
         try:
             r = call(acc, "GET", f"{BASE}/refresh_access_token", grant_type="ig_refresh_token")
         except RuntimeError as e:
