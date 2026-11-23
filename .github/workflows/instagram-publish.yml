@@ -1,48 +1,81 @@
 name: Instagram publish
 
-# 수동 실행 전용. check = 토큰 확인만, publish = 실제 공개 게시 (confirm 칸에 POST 입력 필요)
-# Secret: INSTAGRAM_ACCESS_TOKEN (통합 로그인 시스템 사용자 토큰, 만료 없음)
+# 인스타그램 릴스 자동 게시 (한국 @or._tarot, 일본 @or._tarot.jp). 대기열 instagram/queue/*.json.
+# 쓰레드와 같은 방식: GitHub 예약 실행이 드물게 돌기 때문에, 다음 게시가 약 5시간 40분 안이면 기다렸다가 올린다.
+# Secrets (주인님이 직접 등록, 디는 값을 볼 수 없음):
+#   IG_TOKEN_KO, IG_TOKEN_JA   인스타 장기 토큰(60일). 매주 월요일 자동 갱신
+#   GH_SECRET_PAT              (선택) 있으면 갱신된 토큰을 자동 저장
 on:
+  schedule:
+    - cron: "12,42 * * * *"    # 30분마다 대기열 확인
+    - cron: "40 21 * * *"      # 매일 06:40 KST (07:00 게시 대비)
+    - cron: "27 18 * * 0"      # 매주 월 03:27 KST 토큰 갱신
   workflow_dispatch:
     inputs:
       mode:
         type: choice
-        options: [check, publish]
+        options: [check, validate, due, refresh, insights]
         default: check
-      post_dir:
-        description: "게시할 폴더 (예: instagram/posts/2026-11-15_01_intro)"
-        required: false
-        default: ""
-      confirm:
-        description: "publish일 때만: POST 입력"
-        required: false
-        default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: instagram-publish
+  group: ig-${{ github.event.schedule == '27 18 * * 0' && 'refresh' || ((github.event_name == 'workflow_dispatch' && inputs.mode != 'due') && inputs.mode || 'publish') }}
   cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
-      - name: Guard
-        if: ${{ inputs.mode == 'publish' }}
+      - name: Pick mode
+        id: m
         run: |
-          if [ "${{ inputs.confirm }}" != "POST" ]; then echo "::error::publish requires confirm=POST"; exit 1; fi
-          if [ -z "${{ inputs.post_dir }}" ] || [ ! -f "${{ inputs.post_dir }}/post.json" ]; then echo "::error::post_dir/post.json not found"; exit 1; fi
-      - name: Run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then m="${{ inputs.mode }}";
+          elif [ "${{ github.event.schedule }}" = "27 18 * * 0" ]; then m=refresh; else m=due; fi
+          echo "mode=$m" >> "$GITHUB_OUTPUT"; echo "mode: $m"
+      - name: Publish due reels (wait for upcoming ones)
+        if: ${{ steps.m.outputs.mode == 'due' }}
         env:
-          IG_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          IG_USER_ID: "17841466421160514"
+          IG_TOKEN_KO: ${{ secrets.IG_TOKEN_KO }}
+          IG_TOKEN_JA: ${{ secrets.IG_TOKEN_JA }}
+          WATCH_MIN: "340"
         run: |
-          if [ "${{ inputs.mode }}" = "check" ]; then
-            python3 .github/scripts/ig_publish.py check
-          else
-            python3 .github/scripts/ig_publish.py publish "${{ inputs.post_dir }}"
-          fi
+          git config user.name "ortarot-bot"; git config user.email "actions@users.noreply.github.com"
+          end=$(( $(date +%s) + WATCH_MIN*60 )); fails=0
+          while :; do
+            git pull --rebase -q || true
+            nxt=$(python3 .github/scripts/ig_publish.py next)
+            now=$(date +%s)
+            if [ -z "$nxt" ]; then echo "nothing pending"; break; fi
+            if [ "$nxt" -gt "$now" ]; then
+              if [ "$nxt" -gt "$end" ]; then echo "next at $(date -u -d @$nxt +%FT%TZ), beyond this run"; break; fi
+              echo "waiting until $(date -u -d @$nxt +%FT%TZ)"; sleep $(( nxt - now + 20 )); continue
+            fi
+            if GITHUB_SHA=$(git rev-parse HEAD) python3 .github/scripts/ig_publish.py due; then fails=0; else fails=$((fails+1)); fi
+            git add instagram/published.json 2>/dev/null || true
+            if ! git diff --cached --quiet; then
+              git commit -qm "instagram: publish record"
+              for k in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done
+            fi
+            if [ "$fails" -ge 3 ]; then echo "::error::due failed 3 times"; exit 1; fi
+            [ "$fails" -gt 0 ] && sleep 300
+          done
+      - name: Run
+        if: ${{ steps.m.outputs.mode != 'due' }}
+        env:
+          IG_TOKEN_KO: ${{ secrets.IG_TOKEN_KO }}
+          IG_TOKEN_JA: ${{ secrets.IG_TOKEN_JA }}
+          IG_NEW_TOKEN_DIR: /tmp/ig_new
+        run: python3 .github/scripts/ig_publish.py "${{ steps.m.outputs.mode }}"
+      - name: Save refreshed tokens
+        if: ${{ steps.m.outputs.mode == 'refresh' }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRET_PAT }}
+        run: |
+          for a in ko ja; do f=/tmp/ig_new/$a; [ -s "$f" ] && echo "::add-mask::$(cat $f)"; done
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::GH_SECRET_PAT 없음: 기간은 늘었지만 새 값이 다르면 저장되지 않음"; exit 0; fi
+          for a in ko ja; do f=/tmp/ig_new/$a; [ -s "$f" ] && gh secret set IG_TOKEN_$(echo $a | tr a-z A-Z) --repo "$GITHUB_REPOSITORY" < "$f"; done
+          rm -rf /tmp/ig_new; echo "PASS: secrets updated"
