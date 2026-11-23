@@ -154,6 +154,18 @@ def cmd_check():
             print(f"PASS {acc}: @{name}  limit {json.dumps(lim.get('data', lim), ensure_ascii=False)}")
         except RuntimeError as e:
             print(f"FAIL {acc}: {str(e)[:300]}"); bad += 1
+            # 진단(값은 출력하지 않음): 토큰 종류, 두 토큰이 같은지, 다른 계정 ID로는 되는지
+            other = "ko" if acc == "ja" else "ja"
+            print(f"  diag {acc}: prefix={tok[:3]} len={len(tok)} same_as_{other}={tok == TOKENS[other]}")
+            for probe in (IG_USER[other],):
+                try:
+                    r = call(acc, "GET", probe, fields="id,username"); print(f"  diag {acc}: token can read @{r.get('username')}")
+                except RuntimeError as e2:
+                    print(f"  diag {acc}: cannot read {other} id")
+            try:
+                r = call(acc, "GET", "me", fields="id,name"); print(f"  diag {acc}: me name={r.get('name')}")
+            except RuntimeError as e3:
+                print(f"  diag {acc}: me fail {str(e3)[:150]}")
     if bad:
         sys.exit(1)
 
