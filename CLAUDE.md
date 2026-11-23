@@ -109,7 +109,14 @@
 ## 유튜브 쇼츠 (2026-11-19 디 제안, 다음 주 시작 예정)
 - 픽어카드 릴스(24초, `ortarot-pick-reel` 스킬)를 거의 그대로 사용, 주 3개. 화면에 "멈추고 골라 보세요" 추가.
 - API 자동 업로드는 감사 전엔 비공개로 잠김(videos.insert 문서) → 처음엔 주인님이 스튜디오 예약 공개로 업로드. 디는 영상·제목·설명·고정 댓글 제공.
-- 설치 연결: 채널 프로필 링크 utm_source=youtube. 2~3주 반응 보고 감사 신청 여부 결정.
+- 설치 연결: 채널 프로필 링크 utm_source=youtube.
+- **자동 업로드 연결 계획(2026-11-23 주인님 "유튜브도 연결")** — 새 방에서 "유튜브 연결 진행"으로 시작:
+  1. 약관 확인 완료: 우리 채널에 우리 영상 업로드 허용, 저장하는 데이터는 우리 영상 ID뿐, 재배포 없음.
+  2. 주인님: Google Cloud 새 프로젝트(업로드 전용, or-tarot-trends와 분리) → YouTube Data API v3 사용 설정.
+  3. 주인님: OAuth 동의 화면(외부, 범위 youtube.upload, 테스트 사용자=채널 구글 계정) → **게시(프로덕션)로 전환**(테스트 상태면 갱신 토큰 7일 만료, '확인되지 않은 앱' 경고는 본인용이라 진행) → OAuth 클라이언트(데스크톱) → Secret YT_CLIENT_ID·YT_CLIENT_SECRET, OAuth Playground로 YT_REFRESH_TOKEN.
+  4. 디: youtube/queue + youtube-publish 워크플로(videos.insert, privacyStatus=private로 시험 1개).
+  5. 디: 감사 신청서 문구 준비(https://support.google.com/youtube/contact/yt_api_form) → 주인님 제출. 감사 전 업로드는 비공개로 잠기고 공개 전환·이의 제기 불가 → 통과 전엔 주인님 수동 업로드 유지.
+  6. 통과 후 매일 07:00 자동 공개.
 - 채널 개설 완료(2026-11-19): 오르타로 OR TAROT, @or._tarot (UC7GPybT0yV-jnzZ4xtdGBqw). 설명·플레이 링크(utm_source=youtube)·앱 아이콘·배너(blog/img 아님, 세션에서 만든 yt_banner.jpg) 적용.
 - (참고) 주인님 기존 채널 Ai_or(@Ai-or, 음악 플레이리스트, 구독 10·누적 조회 3.1천)가 있음. 디 의견: 그대로 두고 같은 구글 계정에 새 채널 "오르타로 OR TAROT"를 만들어 쓰기(생성은 주인님). 2026-11-19 주인님 새 채널로 결정(Ai_or는 운영 안 함, 손대지 않음). 링크 utm_source=youtube&utm_medium=channel.
 
