@@ -13,7 +13,7 @@ on:
     inputs:
       mode:
         type: choice
-        options: [check, validate, due, refresh, insights]
+        options: [check, validate, due, refresh, insights, comments]
         default: check
 
 permissions:
@@ -51,6 +51,9 @@ jobs:
             nxt=$(python3 .github/scripts/threads_publish.py next)
             now=$(date +%s)
             if [ -z "$nxt" ]; then echo "nothing pending"; break; fi
+            python3 .github/scripts/threads_publish.py comments || echo "::warning::comments failed"
+            git add threads/comment_answers.json 2>/dev/null || true
+            if ! git diff --cached --quiet; then git commit -qm "threads: comment readings"; for k in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done; fi
             if [ "$nxt" -gt "$now" ]; then
               if [ "$nxt" -gt "$end" ]; then echo "next at $(date -u -d @$nxt +%FT%TZ), beyond this run"; break; fi
               echo "waiting until $(date -u -d @$nxt +%FT%TZ)"; sleep $(( nxt - now + 20 )); continue
@@ -70,6 +73,12 @@ jobs:
           TH_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           TH_NEW_TOKEN_FILE: /tmp/th_new_token
         run: python3 .github/scripts/threads_publish.py "${{ steps.m.outputs.mode }}"
+      - name: Save comment answers
+        if: ${{ steps.m.outputs.mode == 'comments' }}
+        run: |
+          git config user.name "ortarot-bot"; git config user.email "actions@users.noreply.github.com"
+          git add threads/comment_answers.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then git commit -qm "threads: comment readings"; for k in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done; fi
       - name: Save refreshed token
         if: ${{ steps.m.outputs.mode == 'refresh' }}
         env:

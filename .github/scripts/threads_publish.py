@@ -5,6 +5,7 @@
   python threads_publish.py due              게시 시각이 지난 대기열 글을 올린다
   python threads_publish.py next             다음 게시·답 공개 시각(epoch 초, 없으면 빈 줄). 워크플로 대기용
   python threads_publish.py insights         올린 글별 조회·좋아요·댓글 수와 팔로워 수(숫자만)
+  python threads_publish.py comments         댓글 리딩 글(comment_reading_h)의 댓글에 카드 한 장 답글
   python threads_publish.py refresh          장기 토큰 갱신 → 새 토큰을 파일로만 남김(출력 안 함)
 
 대기열: threads/queue/*.json
@@ -26,6 +27,11 @@ REF = os.environ.get("GITHUB_SHA", "main")
 QDIR, STATE = "threads/queue", "threads/published.json"
 MAX_PER_RUN, LATE_LIMIT_H, MAX_LEN, MAX_REPLIES = 2, 24, 500, 5
 KST = dt.timezone(dt.timedelta(hours=9))
+# 댓글 리딩 (2026-11-27): comment_reading_h 가 있는 글에 달린 댓글에만, 사람마다 한 번, 카드 한 장 답글
+ANSWERS, CARDS = "threads/comment_answers.json", "threads/cards_ko.json"
+COMMENT_POLL_MIN, MAX_ANSWERS_RUN, MAX_ANSWERS_DAY = 15, 15, 60
+SENSITIVE = r"자살|죽고\s*싶|죽을래|자해|극단|우울증|공황|병원|수술|암\b|임신|낙태|약을|약\s*먹|소송|고소|변호사|투자|코인|주식|대출|빚|도박|폭행|학대"
+LOVE = r"연애|남친|여친|남자\s*친구|여자\s*친구|그\s*사람|그사람|재회|연락|썸|짝사랑|고백|헤어|이별|전\s*남|전\s*여|애인|결혼|소개팅|속마음|좋아하"
 
 
 def call(method, path, **params):
@@ -68,7 +74,10 @@ def load_queue():
             rv = float(q.get("reveal_after_h", 0))
             if not 0 <= rv <= 24:
                 raise ValueError("reveal_after_h 는 0~24")
-            items.append({"name": name, "at": at, "text": text, "replies": reps, "image": img, "reveal": rv})
+            cw = float(q.get("comment_reading_h", 0))
+            if not 0 <= cw <= 72:
+                raise ValueError("comment_reading_h 는 0~72")
+            items.append({"name": name, "at": at, "text": text, "replies": reps, "image": img, "reveal": rv, "cw": cw})
         except Exception as e:  # noqa: BLE001
             errs.append(f"{name}: {e}")
     return items, errs
@@ -108,6 +117,72 @@ def post_one(text, reply_to=None, image=None):
                 raise
             print("publish retry", i + 1, "(media not found yet)")
             time.sleep(15)
+
+
+def _jong(word):
+    c = word.strip()[-1:]
+    return bool(c) and "가" <= c <= "힣" and (ord(c) - 0xAC00) % 28 != 0
+
+
+UP_ADV = ["이 흐름을 믿고 작은 것 하나를 먼저 해 보세요.", "지금 마음이 가는 쪽으로 한 걸음 움직여 볼 때예요.",
+          "좋은 기운이 있을 때 미뤄 둔 말을 꺼내 보세요.", "너무 많이 재지 말고 가볍게 시작해 봐도 괜찮아요.",
+          "지금 가진 것을 믿고 천천히 밀고 가 보세요."]
+REV_ADV = ["서두르기보다 오늘은 마음을 한 번 정리하는 데 써 보세요.", "결론을 급하게 내리지 말고 며칠만 흐름을 지켜보세요.",
+           "혼자 짐작하기보다 확인할 수 있는 것부터 하나씩 확인해 보세요.", "지금은 쉬어 가도 괜찮다는 신호예요. 무리하지 마세요.",
+           "같은 자리를 맴돌고 있다면, 방법을 하나만 바꿔 보세요."]
+
+
+def compose_comment_reading(comment_id, text):
+    import hashlib, random, re
+    cards = json.load(open(CARDS, encoding="utf-8"))
+    rnd = random.Random(int(hashlib.sha256(comment_id.encode()).hexdigest()[:12], 16))
+    c = rnd.choice(cards)
+    rev = rnd.random() < 0.35
+    ph = (c["love"] if re.search(LOVE, text or "") else c["gen"])[1 if rev else 0]
+    adv = rnd.choice(REV_ADV if rev else UP_ADV)
+    josa = "이" if _jong(ph) else "가"
+    body = (f"뽑힌 카드는 '{c['name']} {'역방향' if rev else '정방향'}'이에요.\n"
+            f"지금 고민에는 {ph}{josa} 보여요. {adv}\n\n"
+            "질문을 넣고 3장으로 더 자세히 보고 싶다면 프로필의 오르타로에서 볼 수 있어요. (재미와 자기 성찰을 위한 참고용이에요)")
+    return body, c["id"], rev
+
+
+def cmd_comments():
+    """comment_reading_h 창이 열린 글의 댓글에 카드 한 장씩 답글. 댓글 내용·아이디는 출력·저장하지 않는다(아이디는 해시만)."""
+    import hashlib, re
+    items, _ = load_queue()
+    st, now = load_state(), dt.datetime.now(dt.timezone.utc)
+    ans = json.load(open(ANSWERS, encoding="utf-8")) if os.path.isfile(ANSWERS) else {}
+    me = call("GET", "me", fields="username").get("username", "")
+    today = now.astimezone(KST).date().isoformat()
+    day_n = sum(1 for v in ans.values() if v.get("day") == today and v.get("status") == "answered")
+    n = 0
+    for it in items:
+        rec = st.get(it["name"])
+        if not it["cw"] or not rec or rec.get("status") != "posted" or now > it["at"] + dt.timedelta(hours=it["cw"]):
+            continue
+        r = call("GET", f"{rec['id']}/replies", fields="id,text,username,timestamp")
+        seen_users = {v.get("user") for v in ans.values() if v.get("post") == it["name"]}
+        for cm in r.get("data", []):
+            cid, user = cm.get("id"), cm.get("username", "")
+            if not cid or cid in ans or user == me:
+                continue
+            uh = hashlib.sha256((it["name"] + user).encode()).hexdigest()[:16]
+            if uh in seen_users:
+                ans[cid] = {"post": it["name"], "user": uh, "day": today, "status": "skip_repeat"}; continue
+            txt = cm.get("text") or ""
+            if re.search(SENSITIVE, txt):
+                ans[cid] = {"post": it["name"], "user": uh, "day": today, "status": "skip_sensitive"}; continue
+            if n >= MAX_ANSWERS_RUN or day_n >= MAX_ANSWERS_DAY:
+                break
+            body, card, rev = compose_comment_reading(cid, txt)
+            time.sleep(4)
+            rid = post_one(body, reply_to=cid)
+            ans[cid] = {"post": it["name"], "user": uh, "day": today, "status": "answered", "card": card, "rev": rev, "reply": rid}
+            seen_users.add(uh); n += 1; day_n += 1
+            json.dump(ans, open(ANSWERS, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump(ans, open(ANSWERS, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print(f"comments: answered {n} this run, {day_n} today")
 
 
 def cmd_validate():
@@ -203,6 +278,8 @@ def cmd_next():
                 ts.append(it["at"])
         elif rec.get("status") == "posted" and rec.get("replies_done", len(it["replies"])) < len(it["replies"]):
             ts.append(it["at"] + dt.timedelta(hours=it["reveal"]))
+        if rec and rec.get("status") == "posted" and it["cw"] and now < it["at"] + dt.timedelta(hours=it["cw"]):
+            ts.append(now + dt.timedelta(minutes=COMMENT_POLL_MIN))  # 댓글 리딩 창이 열려 있으면 실행을 살려 둔다
     if ts:
         print(int(min(ts).timestamp()))
 
@@ -243,4 +320,4 @@ if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "validate"
     if mode not in ("validate", "next") and not TOKEN:
         sys.exit("TH_TOKEN missing")
-    {"validate": cmd_validate, "check": cmd_check, "due": cmd_due, "next": cmd_next, "refresh": cmd_refresh, "insights": cmd_insights}[mode]()
+    {"validate": cmd_validate, "check": cmd_check, "due": cmd_due, "next": cmd_next, "refresh": cmd_refresh, "insights": cmd_insights, "comments": cmd_comments}[mode]()
