@@ -130,9 +130,9 @@
 - (참고) 주인님 기존 채널 Ai_or(@Ai-or, 음악 플레이리스트, 구독 10·누적 조회 3.1천)가 있음. 디 의견: 그대로 두고 같은 구글 계정에 새 채널 "오르타로 OR TAROT"를 만들어 쓰기(생성은 주인님). 2026-11-19 주인님 새 채널로 결정(Ai_or는 운영 안 함, 손대지 않음). 링크 utm_source=youtube&utm_medium=channel.
 
 ## 틱톡 (2026-11-27 주인님 계정 생성)
-- 계정: ORTAROT, @ortarot (tiktok.com/@ortarot). 한국어 계정으로 운영(디 판단, 주인님 다른 말 없으면 유지).
+- 계정: ORTAROT, @ortarot (tiktok.com/@ortarot). **일본어 계정**(2026-11-27 주인님: 첫 게시물 일본어).
 - 업로드: 주인님 수동. 공식 Content Posting API는 심사 전 '나만 보기'·비공개 계정만 가능 → 자동은 보류(유튜브와 같음).
-- 영상: 인스타 한국 릴스 재사용(오리지널 배경음 포함). 주 3개(월·수·금 07:00) 시작 — 2주치 때 틱톡 캡션(해시태그 5개)과 함께 PC `Downloads\naver_autopost\틱톡_MMDD-MMDD\`에 날짜순.
+- 영상: 인스타 일본(@or._tarot.jp) 릴스 재사용(오리지널 배경음 포함), 캡션 일본어·해시태그 #タロット #タロット占い 포함 5개. 주 3개(월·수·금 07:00) 시작 — 2주치 때 틱톡 캡션(해시태그 5개)과 함께 PC `Downloads\naver_autopost\틱톡_MMDD-MMDD\`에 날짜순.
 - 프로필 링크: https://play.google.com/store/apps/details?id=com.ortarot.app&referrer=utm_source%3Dtiktok%26utm_medium%3Dprofile
 
 ## 한 주제 여러 채널 (2026-11-19 주인님 확인)
