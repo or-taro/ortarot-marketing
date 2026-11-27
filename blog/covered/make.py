@@ -1,7 +1,7 @@
 # 노출 부위를 불투명 문양 패널로 가린 카드 그림 (2026-11-23 주인님 결정)
 import math
 from PIL import Image, ImageDraw, ImageFilter
-SRC='/home/claude/ortarot-app/mobile/www/assets/cards/'
+SRC='/home/claude/ortarot-app/mobile/cards-original/'
 R={15:[(80,820,295,1235),(655,820,875,1235)],17:[(375,690,660,860)]}
 GOLD=(214,175,96); NAVY=(28,30,66)
 def star(d,cx,cy,r,fill):

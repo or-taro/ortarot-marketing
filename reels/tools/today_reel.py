@@ -9,7 +9,7 @@ W, H, FPS = 1080, 1920, 30
 BG = (30, 18, 52); BG2 = (58, 32, 100); GOLD = (243, 200, 107); WHITE = (240, 235, 255); DIM = (190, 180, 220)
 FB = "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc"; FD = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"; FR = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
 F = lambda p, s: ImageFont.truetype(p, s, index=0 if JA else 1)
-CARDS = S.get("cards_dir", "/home/claude/ortarot-app/mobile/www/assets/cards/")
+CARDS = S.get("cards_dir", "/home/claude/ortarot-app/mobile/cards-original/")
 def bg():
     im = Image.new("RGB", (W, H)); d = ImageDraw.Draw(im)
     for y in range(H):
