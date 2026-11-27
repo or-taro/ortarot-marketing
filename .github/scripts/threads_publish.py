@@ -136,6 +136,12 @@ def cmd_check():
             return {"error": str(e)}
     r = soft("GET", "me/threads_publishing_limit", fields="reply_quota_usage,reply_config")
     print("REPLY permission:", "PASS" if "error" not in r else "FAIL " + r["error"][:300])
+    # 댓글 읽기 권한(threads_read_replies) 확인: 최근 게시물의 댓글 수만 센다(내용·아이디는 출력 안 함)
+    st = load_state()
+    posted = [v for k, v in sorted(st.items()) if v.get("status") == "posted" and v.get("id")]
+    if posted:
+        rr = soft("GET", f"{posted[-1]['id']}/replies", fields="id")
+        print("READ_REPLIES permission:", "PASS (%d replies on latest post)" % len(rr.get("data", [])) if "error" not in rr else "FAIL " + rr["error"][:300])
 
 
 def cmd_due():
